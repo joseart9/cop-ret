@@ -37,7 +37,6 @@ export async function getSku(sku: string) {
 export async function createSku(sku: any) {
   const db = getFirestore(app);
   const docRef = await addDoc(collection(db, "db"), sku);
-  console.log("Document written with ID: ", docRef.id);
   revalidatePath("/");
 }
 

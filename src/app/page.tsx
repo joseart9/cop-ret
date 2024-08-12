@@ -7,13 +7,14 @@ import { getSku } from "@/server/functions";
 import { Button } from "@nextui-org/button";
 import { Spinner } from "@nextui-org/react";
 import { descontinueSku } from "@/server/functions";
-import { formatDateForInput } from "@/utils";
+import { formatDateForInput, validate } from "@/utils";
 
 import useClases from "@/hooks/useClases";
 import useDepartamentos from "@/hooks/useDepartamentos";
 import useFamilias from "@/hooks/useFamilias";
 import { Autocomplete, AutocompleteItem } from "@nextui-org/react";
 import { Familia, Clase, Departamento } from "@/types";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@nextui-org/react";
 
 const initialState = {
   sku: "",
@@ -23,8 +24,8 @@ const initialState = {
   departamento: 0,
   clase: 0,
   familia: 0,
-  stock: 0,
-  cantidad: 0,
+  stock: "",
+  cantidad: "",
   fechaBaja: "",
   fechaAlta: "",
   descontinuado: 0,
@@ -32,9 +33,12 @@ const initialState = {
 
 export default function Home() {
   const [state, setState] = useState(initialState);
-  const [data, setData] = useState(null);
   const [estado, setEstado] = useState("search");
   const [loading, setLoading] = useState(false);
+
+  // Modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [backdrop, setBackdrop] = useState<'opaque' | 'blur' | 'transparent' | undefined>('opaque');
 
   // Custom hooks
   const [clases, clasesLoading] = useClases();
@@ -44,9 +48,12 @@ export default function Home() {
   const [filteredClases, setFilteredClases] = useState<Clase[]>([]);
   const [filteredFamilias, setFilteredFamilias] = useState<Familia[]>([]);
 
-  console.log(clases, departamentos, familias)
-
   const buttonColor = state.descontinuado === 1 ? "danger" : "default";
+
+  const handleOpen = (backdrop: any) => {
+    setBackdrop(backdrop)
+    onOpen();
+  }
 
   // Search for SKU
   const getItem = async () => {
@@ -87,6 +94,7 @@ export default function Home() {
     setLoading(true);
     await descontinueSku(state.sku, state.descontinuado === 1 ? 0 : 1);
     setLoading(false);
+    onClose();
   };
 
   // Filter classes based on selected department
@@ -109,9 +117,6 @@ export default function Home() {
     }
   }, [state.clase, familias]);
 
-  console.log(filteredFamilias)
-  console.log(state)
-
   return (
     <main className="relative h-screen w-screen bg-slate-50">
       <form
@@ -125,9 +130,9 @@ export default function Home() {
             value={state.sku}
             onChange={handleInputChange}
             required
-            disabled={estado === "update" || estado === "create"}
+            disabled={estado === "update"}
           />
-          <Button type="submit" color={buttonColor} size="md" variant="flat" onClick={handleDescontinueSku}>
+          <Button onPress={onOpen} isDisabled={estado === "search" || estado === "create"} type="submit" color={buttonColor} size="md" variant="flat">
             Descontinuado
           </Button>
         </div>
@@ -163,7 +168,6 @@ export default function Home() {
         <div className="col-span-2 row-start-5">
           <Autocomplete
             label="Departamento"
-            variant="bordered"
             isDisabled={estado === "search"}
             selectedKey={state.departamento.toString()}
             onSelectionChange={(value) => setState(prev => ({
@@ -258,7 +262,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-row justify-between">
-          <Button color="danger" onClick={handleReset}>
+          <Button color="danger" isDisabled={estado === "search"} variant='flat' onClick={handleReset}>
             Limpiar
           </Button>
           <SubmitButton estado={estado} data={state} />
@@ -270,6 +274,27 @@ export default function Home() {
           <Spinner size="lg" color="white" />
         </div>
       )}
+      <Modal backdrop={backdrop} isOpen={isOpen} onClose={onClose}><ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex flex-col gap-1"></ModalHeader>
+            <ModalBody>
+              <p>
+                Estas seguro que deseas descontinuar el SKU: {state.sku}?
+              </p>
+            </ModalBody>
+            <ModalFooter className="flex flex-row justify-between">
+              <Button color="danger" variant="light" onPress={onClose}>
+                Cancelar
+              </Button>
+              <Button color="primary" onClick={handleDescontinueSku}>
+                Confirmar
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+      </Modal>
     </main>
   );
 }
