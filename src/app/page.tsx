@@ -1,113 +1,275 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from "react";
+import { Input } from "@nextui-org/input";
+import SubmitButton from "@/components/SubmitButton";
+import { getSku } from "@/server/functions";
+import { Button } from "@nextui-org/button";
+import { Spinner } from "@nextui-org/react";
+import { descontinueSku } from "@/server/functions";
+import { formatDateForInput } from "@/utils";
+
+import useClases from "@/hooks/useClases";
+import useDepartamentos from "@/hooks/useDepartamentos";
+import useFamilias from "@/hooks/useFamilias";
+import { Autocomplete, AutocompleteItem } from "@nextui-org/react";
+import { Familia, Clase, Departamento } from "@/types";
+
+const initialState = {
+  sku: "",
+  articulo: "",
+  marca: "",
+  modelo: "",
+  departamento: 0,
+  clase: 0,
+  familia: 0,
+  stock: 0,
+  cantidad: 0,
+  fechaBaja: "",
+  fechaAlta: "",
+  descontinuado: 0,
+};
 
 export default function Home() {
+  const [state, setState] = useState(initialState);
+  const [data, setData] = useState(null);
+  const [estado, setEstado] = useState("search");
+  const [loading, setLoading] = useState(false);
+
+  // Custom hooks
+  const [clases, clasesLoading] = useClases();
+  const [departamentos, departamentosLoading] = useDepartamentos();
+  const [familias, familiasLoading] = useFamilias();
+
+  const [filteredClases, setFilteredClases] = useState<Clase[]>([]);
+  const [filteredFamilias, setFilteredFamilias] = useState<Familia[]>([]);
+
+  console.log(clases, departamentos, familias)
+
+  const buttonColor = state.descontinuado === 1 ? "danger" : "default";
+
+  // Search for SKU
+  const getItem = async () => {
+    setLoading(true);
+    const result = await getSku(state.sku);
+    setLoading(false);
+    return result;
+  };
+
+  const handleInputChange = (e: any) => {
+    const { name, value } = e.target;
+    setState({
+      ...state,
+      [name]: value,
+    });
+  };
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    const fetchedData = await getItem();
+    setLoading(false);
+
+    if (!fetchedData) {
+      setEstado("create");
+    } else {
+      setEstado("update");
+      setState(fetchedData);
+    }
+  };
+
+  const handleReset = () => {
+    setState(initialState);
+    setEstado("search");
+  };
+
+  const handleDescontinueSku = async () => {
+    setLoading(true);
+    await descontinueSku(state.sku, state.descontinuado === 1 ? 0 : 1);
+    setLoading(false);
+  };
+
+  // Filter classes based on selected department
+  useEffect(() => {
+    if (state.departamento) {
+      const filtered = clases.filter(clase => clase.departamentoId === state.departamento.toString());
+      setFilteredClases(filtered);
+    } else {
+      setFilteredClases(clases);
+    }
+  }, [state.departamento, clases]);
+
+  // Filter families based on selected class
+  useEffect(() => {
+    if (state.clase) {
+      const filtered = familias.filter(familia => familia.claseId === state.clase.toString());
+      setFilteredFamilias(filtered);
+    } else {
+      setFilteredFamilias(familias);
+    }
+  }, [state.clase, familias]);
+
+  console.log(filteredFamilias)
+  console.log(state)
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main className="relative h-screen w-screen bg-slate-50">
+      <form
+        onSubmit={handleSubmit}
+        className="h-full w-full space-y-4 p-4"
+      >
+        <div className="w-full flex flex-row space-x-4 items-center">
+          <Input
+            label="Sku"
+            name="sku"
+            value={state.sku}
+            onChange={handleInputChange}
+            required
+            disabled={estado === "update" || estado === "create"}
+          />
+          <Button type="submit" color={buttonColor} size="md" variant="flat" onClick={handleDescontinueSku}>
+            Descontinuado
+          </Button>
         </div>
-      </div>
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <div className="col-span-2">
+          <Input
+            label="Articulo"
+            name="articulo"
+            value={state.articulo}
+            onChange={handleInputChange}
+            disabled={estado === "search"}
+          />
+        </div>
+        <div className="col-span-2 row-start-3">
+          <Input
+            label="Marca"
+            name="marca"
+            value={state.marca}
+            onChange={handleInputChange}
+            disabled={estado === "search"}
+          />
+        </div>
+        <div className="col-span-2 row-start-4">
+          <Input
+            label="Modelo"
+            name="modelo"
+            value={state.modelo}
+            onChange={handleInputChange}
+            disabled={estado === "search"}
+          />
+        </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div className="col-span-2 row-start-5">
+          <Autocomplete
+            label="Departamento"
+            variant="bordered"
+            isDisabled={estado === "search"}
+            selectedKey={state.departamento.toString()}
+            onSelectionChange={(value) => setState(prev => ({
+              ...prev,
+              departamento: Number(value),
+              clase: 0,  // Reset clase and familia when department changes
+              familia: 0
+            }))}
+          >
+            {departamentos.map(departamento => (
+              <AutocompleteItem key={departamento.id} value={departamento.id}>
+                {departamento.name}
+              </AutocompleteItem>
+            ))}
+          </Autocomplete>
+        </div>
+
+        <div className="col-span-2 row-start-6">
+          <Autocomplete
+            label="Clase"
+            isDisabled={estado === "search" || !state.departamento}
+            selectedKey={state.clase.toString()}
+            onSelectionChange={(value) => setState(prev => ({
+              ...prev,
+              clase: Number(value),
+              familia: 0  // Reset familia when clase changes
+            }))}
+          >
+            {filteredClases.map(clase => (
+              <AutocompleteItem key={clase.id} value={clase.id}>
+                {clase.name}
+              </AutocompleteItem>
+            ))}
+          </Autocomplete>
+        </div>
+
+        <Autocomplete
+          label="Familia"
+          isDisabled={estado === "search" || !state.clase}
+          selectedKey={state.familia.toString().padStart(2, '0')}
+          onSelectionChange={(value) => {
+            const selectedValue = value ? String(value).padStart(2, '0') : '00';
+            setState(prev => ({
+              ...prev,
+              familia: Number(selectedValue)
+            }));
+          }}
         >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+          {filteredFamilias.map(familia => (
+            <AutocompleteItem key={familia.id} value={familia.id.toString().padStart(2, '0')}>
+              {familia.name}
+            </AutocompleteItem>
+          ))}
+        </Autocomplete>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+        <div className="flex flex-row space-x-4">
+          <Input
+            label="Stock"
+            name="stock"
+            type="number"
+            value={state.stock.toString()}
+            onChange={handleInputChange}
+            disabled={estado === "search"}
+          />
+          <Input
+            label="Cantidad"
+            name="cantidad"
+            type="number"
+            value={state.cantidad.toString()}
+            onChange={handleInputChange}
+            disabled={estado === "search"}
+          />
+        </div>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+        <div className="flex flex-row space-x-4">
+          <Input
+            label="Fecha Alta"
+            name="fechaAlta"
+            isReadOnly
+            value={formatDateForInput(state.fechaAlta)}
+            onChange={handleInputChange}
+            disabled={estado === "search" || estado === "create"}
+          />
+          <Input
+            label="Fecha Baja"
+            name="fechaBaja"
+            isReadOnly
+            value={formatDateForInput(state.fechaBaja)}
+            onChange={handleInputChange}
+            disabled={estado === "search" || estado === "create"}
+          />
+        </div>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+        <div className="flex flex-row justify-between">
+          <Button color="danger" onClick={handleReset}>
+            Limpiar
+          </Button>
+          <SubmitButton estado={estado} data={state} />
+        </div>
+      </form>
+
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-35">
+          <Spinner size="lg" color="white" />
+        </div>
+      )}
     </main>
   );
 }
