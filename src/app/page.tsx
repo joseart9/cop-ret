@@ -134,9 +134,6 @@ export default function Home() {
     }
   }, [state.departamento, state.clase, familias]);
 
-  console.log(filteredFamilias)
-  console.log(filteredClases)
-
   return (
     <main className="relative h-screen w-screen bg-slate-50">
       <form
