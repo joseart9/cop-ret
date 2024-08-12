@@ -22,6 +22,7 @@ export default function SubmitButton({ estado, data }: { estado: string, data: a
             } else {
                 data.fechaAlta = new Date().toISOString();
                 data.fechaBaja = "1900-01-01";
+                console.log("DATAAAAAAAAAAA", data)
                 await createSku(data);
                 alert("Articulo creado correctamente", "success");
             }
@@ -37,11 +38,14 @@ export default function SubmitButton({ estado, data }: { estado: string, data: a
         try {
             const errors = validate(data)
 
+            console.log(errors)
+
             if (errors !== 1) {
                 for (const error of errors) {
-                    alert(error, "error");
+                    // alert(error, "error");
                 }
             } else {
+                console.log("DATAAAAAAAAAAA", data)
                 await updateSku(data.sku, data);
                 alert("Articulo actualizado correctamente", "success");
             }

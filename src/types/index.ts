@@ -7,6 +7,7 @@ export interface Familia {
   id: string;
   name: string;
   claseId: string;
+  departamentoId: string;
 }
 
 export interface Clase {

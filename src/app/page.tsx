@@ -7,7 +7,7 @@ import { getSku } from "@/server/functions";
 import { Button } from "@nextui-org/button";
 import { Spinner } from "@nextui-org/react";
 import { descontinueSku } from "@/server/functions";
-import { formatDateForInput, validate } from "@/utils";
+import { formatDateForInput, validate, alert } from "@/utils";
 
 import useClases from "@/hooks/useClases";
 import useDepartamentos from "@/hooks/useDepartamentos";
@@ -15,6 +15,7 @@ import useFamilias from "@/hooks/useFamilias";
 import { Autocomplete, AutocompleteItem } from "@nextui-org/react";
 import { Familia, Clase, Departamento } from "@/types";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@nextui-org/react";
+import { revalidatePath } from "next/cache";
 
 const initialState = {
   sku: "",
@@ -23,9 +24,9 @@ const initialState = {
   modelo: "",
   departamento: 0,
   clase: 0,
-  familia: 0,
-  stock: "",
-  cantidad: "",
+  familia: "00",
+  stock: 0,
+  cantidad: 0,
   fechaBaja: "",
   fechaAlta: "",
   descontinuado: 0,
@@ -74,14 +75,25 @@ export default function Home() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
-    const fetchedData = await getItem();
-    setLoading(false);
 
-    if (!fetchedData) {
-      setEstado("create");
+
+    const errors = validate(state);
+
+    if (errors !== 1) {
+      for (const error of errors) {
+        alert(error, "error");
+      }
+      setLoading(false);
     } else {
-      setEstado("update");
-      setState(fetchedData);
+      const fetchedData = await getItem();
+      setLoading(false);
+
+      if (!fetchedData) {
+        setEstado("create");
+      } else {
+        setEstado("update");
+        setState(fetchedData);
+      }
     }
   };
 
@@ -93,6 +105,8 @@ export default function Home() {
   const handleDescontinueSku = async () => {
     setLoading(true);
     await descontinueSku(state.sku, state.descontinuado === 1 ? 0 : 1);
+    const refetch = await getItem();
+    setState(refetch);
     setLoading(false);
     onClose();
   };
@@ -107,15 +121,21 @@ export default function Home() {
     }
   }, [state.departamento, clases]);
 
-  // Filter families based on selected class
+  // Filter families based on selected class and department
   useEffect(() => {
-    if (state.clase) {
-      const filtered = familias.filter(familia => familia.claseId === state.clase.toString());
+    if (state.departamento && state.clase) {
+      const filtered = familias.filter(familia =>
+        familia.departamentoId === state.departamento.toString() &&
+        familia.claseId === state.clase.toString()
+      );
       setFilteredFamilias(filtered);
     } else {
       setFilteredFamilias(familias);
     }
-  }, [state.clase, familias]);
+  }, [state.departamento, state.clase, familias]);
+
+  console.log(filteredFamilias)
+  console.log(filteredClases)
 
   return (
     <main className="relative h-screen w-screen bg-slate-50">
@@ -174,7 +194,7 @@ export default function Home() {
               ...prev,
               departamento: Number(value),
               clase: 0,  // Reset clase and familia when department changes
-              familia: 0
+              familia: "00"
             }))}
           >
             {departamentos.map(departamento => (
@@ -193,7 +213,7 @@ export default function Home() {
             onSelectionChange={(value) => setState(prev => ({
               ...prev,
               clase: Number(value),
-              familia: 0  // Reset familia when clase changes
+              familia: "00"  // Reset familia when clase changes
             }))}
           >
             {filteredClases.map(clase => (
@@ -212,7 +232,7 @@ export default function Home() {
             const selectedValue = value ? String(value).padStart(2, '0') : '00';
             setState(prev => ({
               ...prev,
-              familia: Number(selectedValue)
+              familia: selectedValue
             }));
           }}
         >
@@ -280,7 +300,7 @@ export default function Home() {
             <ModalHeader className="flex flex-col gap-1"></ModalHeader>
             <ModalBody>
               <p>
-                Estas seguro que deseas descontinuar el SKU: {state.sku}?
+                Estas seguro que deseas continuar con la acción?
               </p>
             </ModalBody>
             <ModalFooter className="flex flex-row justify-between">

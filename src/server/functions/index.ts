@@ -21,7 +21,6 @@ export async function getSku(sku: string) {
   const querySnapshot = await getDocs(skuQuery);
 
   if (querySnapshot.empty) {
-    console.log("No matching documents.");
     return null;
   }
 
@@ -47,14 +46,12 @@ export async function updateSku(sku: string, updatedData: any) {
   const querySnapshot = await getDocs(skuQuery);
 
   if (querySnapshot.empty) {
-    console.log("No matching documents.");
     return null;
   }
 
   const docRef = doc(db, "db", querySnapshot.docs[0].id);
 
   await updateDoc(docRef, updatedData);
-  console.log("Document updated with ID: ", querySnapshot.docs[0].id);
   revalidatePath("/");
 }
 
@@ -64,7 +61,6 @@ export async function descontinueSku(sku: string, value: number) {
   const querySnapshot = await getDocs(skuQuery);
 
   if (querySnapshot.empty) {
-    console.log("No matching documents.");
     return null;
   }
 
@@ -81,10 +77,6 @@ export async function descontinueSku(sku: string, value: number) {
       fechaBaja: new Date().toISOString(),
     });
   }
-  console.log(
-    "Document updated to discontinued with ID: ",
-    querySnapshot.docs[0].id
-  );
   revalidatePath("/");
 }
 
@@ -127,6 +119,7 @@ export async function getAllFamilias() {
     id: doc.data().id,
     name: doc.data().name,
     claseId: doc.data().claseId,
+    departamentoId: doc.data().departamentoId,
     ...doc.data(),
   }));
   return documentos;
